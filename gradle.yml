@@ -1,0 +1,53 @@
+version: 2.1
+description:
+
+orbs:
+  gradle: circleci/gradle@1
+
+executors:
+  gradle:
+    docker:
+      - image: circleci/openjdk:8-jdk
+  postgres:
+    docker:
+      - image: circleci/openjdk:8-jdk
+      - image: circleci/postgres:9.6.3-alpine
+        environment:
+          POSTGRES_USER: yuxin
+          POSTGRES_DB: yuxin
+
+jobs:
+  build:
+    parameters:
+      executor:
+        description: The name of custom executor to use
+        type: executor
+        default: gradle
+      artifacts_path:
+        description: Path to artifacts
+        type: string
+        default: '**/build/libs/*.jar'
+    executor: <<parameters.executor>>
+    steps:
+      - checkout
+
+      - gradle/with_cache:
+          steps:
+            - run:
+                name: Build
+                command: ./gradlew build
+            - run:
+                name: Publish
+                command: ./gradlew artifactoryPublish
+
+      - run:
+          name: Copy artifacts
+          command: |
+            mkdir -p /tmp/artifacts
+            find . -path '<<parameters.artifacts_path>>' -exec cp {} /tmp/artifacts/ \;
+
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: 'artifacts'
+
+
